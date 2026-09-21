@@ -59,3 +59,11 @@ Pass `-p:SkipDeploy=true` to build without touching the game folder.
 2. Enable **Troop Tooltip Sorter** in the launcher, below Harmony.
 3. Load a campaign. A green "Troop Tooltip Sorter loaded." message confirms the module started.
 4. Hover a party on the map and hold **ALT**. The troop list should run largest stack first.
+
+## Naval DLC
+
+Naval DLC ships its own `NavalTooltipRefresherCollection` and re-registers the **settlement**
+tooltip to point at it, so patching only the TaleWorlds type leaves castle and town garrisons
+unsorted. The mod therefore scans loaded assemblies for every copy of `AddPartyTroopProperties`
+and patches each one, matching on the exact parameter signature. Naval DLC is not a dependency:
+without it the scan simply finds nothing.

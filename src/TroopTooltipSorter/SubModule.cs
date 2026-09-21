@@ -5,6 +5,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 using TroopTooltipSorter.Diagnostics;
+using TroopTooltipSorter.Patches;
 
 namespace TroopTooltipSorter
 {
@@ -26,6 +27,10 @@ namespace TroopTooltipSorter
             {
                 _harmony = new Harmony("omerb." + ModuleId);
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
+
+                // Naval DLC and friends carry their own copy of the tooltip builder; attribute
+                // patching only reaches the TaleWorlds one.
+                SortTroopTooltipPatch.PatchAdditionalRefreshers(_harmony);
             }
             catch (Exception e)
             {
@@ -41,6 +46,20 @@ namespace TroopTooltipSorter
             if (_announced)
             {
                 return;
+            }
+
+            // Re-scan in case a content module's assembly had not loaded yet at OnSubModuleLoad.
+            // Already-patched methods are skipped, so running twice is harmless.
+            try
+            {
+                if (_harmony != null)
+                {
+                    SortTroopTooltipPatch.PatchAdditionalRefreshers(_harmony);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.PrintError($"{ModuleName}: re-scan for additional tooltip builders failed. {e}", e.StackTrace);
             }
 
             _announced = true;
