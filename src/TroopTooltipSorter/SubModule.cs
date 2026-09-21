@@ -4,6 +4,7 @@ using HarmonyLib;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TroopTooltipSorter.Diagnostics;
 
 namespace TroopTooltipSorter
 {
@@ -18,6 +19,8 @@ namespace TroopTooltipSorter
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
+
+            DiagnosticLog.Initialize();
 
             try
             {
