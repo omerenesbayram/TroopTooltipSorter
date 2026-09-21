@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Module>
+  <Name value="Troop Tooltip Sorter" />
+  <Id value="TroopTooltipSorter" />
+  <Version value="v0.1.0" />
+  <DefaultModule value="false" />
+  <SingleplayerModule value="true" />
+  <MultiplayerModule value="false" />
+  <Official value="false" />
+  <ModuleCategory value="Singleplayer" />
+  <ModuleType value="Community" />
+  <DependedModules>
+    <DependedModule Id="Native" DependentVersion="v1.4.8" Optional="false" />
+    <DependedModule Id="SandBoxCore" DependentVersion="v1.4.8" Optional="false" />
+    <DependedModule Id="Sandbox" DependentVersion="v1.4.8" Optional="false" />
+    <DependedModule Id="StoryMode" DependentVersion="v1.4.8" Optional="false" />
+    <DependedModule Id="Bannerlord.Harmony" DependentVersion="v2.4.2" Optional="false" />
+  </DependedModules>
+  <!-- BLSE / BUTR load-order metadata: make sure Harmony is up before we patch. -->
+  <DependedModuleMetadatas>
+    <DependedModuleMetadata id="Bannerlord.Harmony" order="LoadBeforeThis" version="v2.4.2" />
+    <DependedModuleMetadata id="Native" order="LoadBeforeThis" version="v1.4.8" />
+    <DependedModuleMetadata id="SandBoxCore" order="LoadBeforeThis" version="v1.4.8" />
+    <DependedModuleMetadata id="Sandbox" order="LoadBeforeThis" version="v1.4.8" />
+    <DependedModuleMetadata id="StoryMode" order="LoadBeforeThis" version="v1.4.8" />
+  </DependedModuleMetadatas>
+  <SubModules>
+    <SubModule>
+      <Name value="TroopTooltipSorter" />
+      <DLLName value="TroopTooltipSorter.dll" />
+      <SubModuleClassType value="TroopTooltipSorter.SubModule" />
+      <Tags>
+        <Tag key="DedicatedServerType" value="none" />
+        <Tag key="IsNoRenderModeElement" value="false" />
+      </Tags>
+    </SubModule>
+  </SubModules>
+  <Xmls />
+</Module>

@@ -1,0 +1,18 @@
+<Project>
+
+  <!--
+    Shared paths. Override BannerlordDir on the command line if the game ever moves:
+      dotnet build -p:BannerlordDir="D:\Games\Bannerlord"
+  -->
+  <PropertyGroup>
+    <BannerlordDir Condition="'$(BannerlordDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Mount &amp; Blade II Bannerlord</BannerlordDir>
+    <BannerlordBinDir>$(BannerlordDir)\bin\Win64_Shipping_Client</BannerlordBinDir>
+
+    <ModuleName>TroopTooltipSorter</ModuleName>
+    <ModuleDir>$(BannerlordDir)\Modules\$(ModuleName)</ModuleDir>
+    <ModuleBinDir>$(ModuleDir)\bin\Win64_Shipping_Client</ModuleBinDir>
+
+    <HarmonyDll>$(BannerlordDir)\Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\0Harmony.dll</HarmonyDll>
+  </PropertyGroup>
+
+</Project>
