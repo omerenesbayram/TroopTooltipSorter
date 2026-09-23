@@ -30,7 +30,7 @@ namespace TroopTooltipSorter
 
                 // Naval DLC and friends carry their own copy of the tooltip builder; attribute
                 // patching only reaches the TaleWorlds one.
-                SortTroopTooltipPatch.PatchAdditionalRefreshers(_harmony);
+                TooltipBuilderPatcher.PatchAdditionalBuilders(_harmony);
             }
             catch (Exception e)
             {
@@ -54,7 +54,7 @@ namespace TroopTooltipSorter
             {
                 if (_harmony != null)
                 {
-                    SortTroopTooltipPatch.PatchAdditionalRefreshers(_harmony);
+                    TooltipBuilderPatcher.PatchAdditionalBuilders(_harmony);
                 }
             }
             catch (Exception e)

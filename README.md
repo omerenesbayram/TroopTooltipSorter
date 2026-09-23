@@ -67,3 +67,21 @@ tooltip to point at it, so patching only the TaleWorlds type leaves castle and t
 unsorted. The mod therefore scans loaded assemblies for every copy of `AddPartyTroopProperties`
 and patches each one, matching on the exact parameter signature. Naval DLC is not a dependency:
 without it the scan simply finds nothing.
+
+## Troop quality in the summary
+
+The "Troops" block summarises a roster by formation class (Infantry, Ranged, Cavalry, Horse
+Archer), which shows an army's shape but nothing about its quality - 200 infantry of recruits and
+200 of veterans read alike. Each of those rows is split in two by troop tier:
+
+```
+Infantry L4+    41
+Infantry L1-3   47
+Ranged L4+      56
+Ranged L1-3     82
+Cavalry L4+     11
+```
+
+`L4+` is tier 4 and above, `L1-3` everything below. A bucket with nobody in it is omitted rather
+than shown as zero. Vanilla's own totals are recomputed from the same roster, so the two rows
+always add up to the number vanilla showed.
