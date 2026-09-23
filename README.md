@@ -72,7 +72,7 @@ without it the scan simply finds nothing.
 
 The "Troops" block summarises a roster by formation class (Infantry, Ranged, Cavalry, Horse
 Archer), which shows an army's shape but nothing about its quality - 200 infantry of recruits and
-200 of veterans read alike. Each of those rows is split in two by troop tier:
+200 of veterans read alike. While **ALT** is held, each of those rows splits in two by troop tier:
 
 ```
 Infantry T4+      13
@@ -88,6 +88,9 @@ Horse Archer T3-  31
 `T4+` is tier 4 and above, `T3-` everything below. Tier is the troop's tier as the game shows it,
 not `CharacterObject.Level`, which is on the hero-level scale and would make a cutoff of 4
 meaningless.
+
+Without ALT the tooltip keeps vanilla's single number per class, so the split is detail you ask
+for rather than clutter you always carry.
 
 A bucket with nobody in it is omitted rather than printed as zero. The totals are recomputed from
 the same roster vanilla used, so each pair still adds up to the single number vanilla showed. The

@@ -17,7 +17,8 @@ namespace TroopTooltipSorter.Patches
     /// Infantry, Ranged, Cavalry, Horse Archer - which tells you the shape of an army but nothing
     /// about its quality. A 200-strong infantry line of recruits and one of veterans read alike.
     ///
-    /// Split each of those rows in two by troop tier: tier 4 and above, and everything below.
+    /// While ALT is held, split each of those rows in two by troop tier: tier 4 and above, and
+    /// everything below. Without ALT the tooltip keeps vanilla's single number per class.
     ///
     /// Vanilla builds these rows from the same roster we are handed, so rather than duplicate its
     /// aggregation we recompute the totals and swap each finished row for the two it should have
@@ -40,12 +41,16 @@ namespace TroopTooltipSorter.Patches
             bool isInspected)
         {
             // Vanilla only emits the formation summary for a roster you are allowed to inspect.
-            if (!isInspected || troopRoster == null)
+            //
+            // The split is extra detail, so it is gated on ALT the same way the troop breakdown is:
+            // at a glance you get vanilla's single number per class, and holding ALT breaks it open.
+            // The tooltip is rebuilt when ALT is pressed or released, so this flips live.
+            if (!isInspected || troopRoster == null || propertyBasedTooltipVM == null || !propertyBasedTooltipVM.IsExtended)
             {
                 return;
             }
 
-            MBBindingList<TooltipProperty> rows = propertyBasedTooltipVM?.TooltipPropertyList;
+            MBBindingList<TooltipProperty> rows = propertyBasedTooltipVM.TooltipPropertyList;
             if (rows == null || rows.Count == 0)
             {
                 return;
