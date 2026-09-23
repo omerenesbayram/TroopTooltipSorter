@@ -6,7 +6,6 @@ using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.ViewModelCollection;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
-using TroopTooltipSorter.Diagnostics;
 
 namespace TroopTooltipSorter.Patches
 {
@@ -57,7 +56,6 @@ namespace TroopTooltipSorter.Patches
                     try
                     {
                         harmony.Patch(target, prefix: prefix, postfix: postfix);
-                        DiagnosticLog.Write($"[patch] also patched {type.FullName}.{TargetMethodName}");
                     }
                     catch (Exception e)
                     {

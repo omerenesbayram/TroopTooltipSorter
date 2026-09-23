@@ -75,13 +75,37 @@ Archer), which shows an army's shape but nothing about its quality - 200 infantr
 200 of veterans read alike. Each of those rows is split in two by troop tier:
 
 ```
-Infantry L4+    41
-Infantry L1-3   47
-Ranged L4+      56
-Ranged L1-3     82
-Cavalry L4+     11
+Infantry T4+      13
+Infantry T3-     159
+Ranged T4+        38
+Ranged T3-       137
+Cavalry T4+        6
+Cavalry T3-        5
+Horse Archer T4+  36
+Horse Archer T3-  31
 ```
 
-`L4+` is tier 4 and above, `L1-3` everything below. A bucket with nobody in it is omitted rather
-than shown as zero. Vanilla's own totals are recomputed from the same roster, so the two rows
-always add up to the number vanilla showed.
+`T4+` is tier 4 and above, `T3-` everything below. Tier is the troop's tier as the game shows it,
+not `CharacterObject.Level`, which is on the hero-level scale and would make a cutoff of 4
+meaningless.
+
+A bucket with nobody in it is omitted rather than printed as zero. The totals are recomputed from
+the same roster vanilla used, so each pair still adds up to the single number vanilla showed. The
+suffixes are appended to whatever label the game produced, so this stays correct in any language.
+
+## Packaging a release
+
+```
+powershell -ExecutionPolicy Bypass -File pack.ps1
+```
+
+Builds Release without touching the installed copy and writes
+`dist/TroopTooltipSorter-v<version>.zip`, holding the module folder at the zip root:
+
+```
+TroopTooltipSorter/SubModule.xml
+TroopTooltipSorter/bin/Win64_Shipping_Client/TroopTooltipSorter.dll
+```
+
+Extract that into the game's `Modules` folder, or hand the zip to a mod manager. The version comes
+from `module/SubModule.xml`, so bump it there (and in the `.csproj`) before packing.

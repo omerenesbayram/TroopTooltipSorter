@@ -9,7 +9,6 @@ using TaleWorlds.Core;
 using TaleWorlds.Core.ViewModelCollection.Information;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
-using TroopTooltipSorter.Diagnostics;
 
 namespace TroopTooltipSorter.Patches
 {
@@ -30,8 +29,8 @@ namespace TroopTooltipSorter.Patches
         /// <summary>Lowest tier counted as a veteran. Bannerlord tiers run 1-6.</summary>
         private const int VeteranTier = 4;
 
-        private const string VeteranSuffix = " L4+";
-        private const string RecruitSuffix = " L1-3";
+        private const string VeteranSuffix = " T4+";
+        private const string RecruitSuffix = " T3-";
 
         private static bool _loggedFailure;
 
@@ -72,10 +71,6 @@ namespace TroopTooltipSorter.Patches
 
                     Replace(rows, i, label, totals);
                 }
-
-                DiagnosticLog.WriteOnce(
-                    $"tiersplit:{byLabel.Count}:{troopRoster.Count}",
-                    () => $"[tier] split {byLabel.Count} formation row(s) from a roster of {troopRoster.Count} entries");
             }
             catch (Exception e)
             {
@@ -83,7 +78,6 @@ namespace TroopTooltipSorter.Patches
                 if (!_loggedFailure)
                 {
                     _loggedFailure = true;
-                    DiagnosticLog.Write($"[tier] FAILED: {e}");
                     Debug.PrintError($"{SubModule.ModuleName}: could not split the troop summary by tier, leaving it as vanilla. {e}", e.StackTrace);
                 }
             }
