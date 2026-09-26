@@ -25,6 +25,13 @@ namespace TroopTooltipSorter.Patches
     ///
     /// Each row holds two independent closures, one per column, so the columns are permuted
     /// separately: sorting the left must not drag the right along with it.
+    ///
+    /// The number a row shows is NOT the side's total for that troop. Vanilla's label delegate
+    /// scans the parties and returns on the first one containing the character, so what you read is
+    /// that single party's count. For a two-party defence the two happen to coincide; across a
+    /// fourteen-party besieging army they do not, and sorting by the side total produces an order
+    /// that looks shuffled against the numbers on screen. So we sort by the same figure vanilla
+    /// prints - see <see cref="FirstPartyCounts"/>.
     /// </summary>
     internal static class EncounterTooltipSorter
     {
@@ -33,7 +40,13 @@ namespace TroopTooltipSorter.Patches
 
         private static bool _loggedFailure;
 
-        internal static void Reorder(PropertyBasedTooltipVM tooltip, TroopRoster left, TroopRoster right, bool isExtended)
+        internal static void Reorder(
+            PropertyBasedTooltipVM tooltip,
+            TroopRoster left,
+            Dictionary<CharacterObject, int> leftCounts,
+            TroopRoster right,
+            Dictionary<CharacterObject, int> rightCounts,
+            bool isExtended)
         {
             // The per-troop rows only exist in the extended (ALT) layout.
             if (!isExtended || tooltip == null || left == null || right == null)
@@ -66,8 +79,8 @@ namespace TroopTooltipSorter.Patches
                     return;
                 }
 
-                int[] orderLeft = SortedOrder(left, rowCount);
-                int[] orderRight = SortedOrder(right, rowCount);
+                int[] orderLeft = SortedOrder(left, leftCounts, rowCount);
+                int[] orderRight = SortedOrder(right, rightCounts, rowCount);
 
                 // Snapshot before writing: the permutation reads rows we are about to overwrite.
                 var definitions = new Func<string>[rowCount];
@@ -125,7 +138,7 @@ namespace TroopTooltipSorter.Patches
                 {
                     PartyBase party = item?.Party;
 
-                    // Vanilla leaves out parties whose strength you are not allowed to see.
+                    // Vanilla leaves hidden parties out of the roster it indexes rows by.
                     MobileParty mobileParty = party?.MobileParty;
                     if (mobileParty != null && mobileParty.IsInfoHidden)
                     {
@@ -137,6 +150,60 @@ namespace TroopTooltipSorter.Patches
             }
 
             return roster;
+        }
+
+        /// <summary>
+        /// The count each row actually prints: the first party in the list that holds that troop
+        /// wins, which is what vanilla's label delegate returns. Note this deliberately does NOT
+        /// apply the hidden-party filter used when building the roster - the label delegate does
+        /// not apply it either, and matching what is printed is the whole point.
+        /// </summary>
+        internal static Dictionary<CharacterObject, int> FirstPartyCounts(MBReadOnlyList<PartyBase> parties)
+        {
+            var counts = new Dictionary<CharacterObject, int>();
+
+            if (parties != null)
+            {
+                foreach (PartyBase party in parties)
+                {
+                    AddFirstCounts(counts, party);
+                }
+            }
+
+            return counts;
+        }
+
+        internal static Dictionary<CharacterObject, int> FirstPartyCounts(MBReadOnlyList<MapEventParty> parties)
+        {
+            var counts = new Dictionary<CharacterObject, int>();
+
+            if (parties != null)
+            {
+                foreach (MapEventParty item in parties)
+                {
+                    AddFirstCounts(counts, item?.Party);
+                }
+            }
+
+            return counts;
+        }
+
+        private static void AddFirstCounts(Dictionary<CharacterObject, int> counts, PartyBase party)
+        {
+            TroopRoster members = party?.MemberRoster;
+            if (members == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < members.Count; i++)
+            {
+                TroopRosterElement element = members.GetElementCopyAtIndex(i);
+                if (element.Character != null && !counts.ContainsKey(element.Character))
+                {
+                    counts[element.Character] = element.Number;
+                }
+            }
         }
 
         private static void AddParty(TroopRoster roster, PartyBase party, ref int lastHeroIndex)
@@ -169,17 +236,21 @@ namespace TroopTooltipSorter.Patches
 
         /// <summary>
         /// Row indices for one column, in the order they should be displayed. Heroes keep vanilla's
-        /// leading block; the troops behind them are sorted by headcount. Indices past this side's
-        /// roster are vanilla's blank filler rows and stay where they are.
+        /// leading block - their rows show a health percentage, not a count, so there is nothing to
+        /// sort them by. Indices past this side's roster are vanilla's blank filler rows and stay
+        /// where they are.
         /// </summary>
-        private static int[] SortedOrder(TroopRoster roster, int rowCount)
+        private static int[] SortedOrder(TroopRoster roster, Dictionary<CharacterObject, int> displayedCounts, int rowCount)
         {
+            var characters = new CharacterObject[roster.Count];
             var heroes = new List<int>();
             var troops = new List<int>();
 
             for (int i = 0; i < roster.Count; i++)
             {
                 CharacterObject character = roster.GetElementCopyAtIndex(i).Character;
+                characters[i] = character;
+
                 if (character != null && character.IsHero)
                 {
                     heroes.Add(i);
@@ -190,7 +261,7 @@ namespace TroopTooltipSorter.Patches
                 }
             }
 
-            troops.Sort((a, b) => Compare(roster.GetElementCopyAtIndex(a), roster.GetElementCopyAtIndex(b)));
+            troops.Sort((a, b) => Compare(characters[a], characters[b], displayedCounts));
 
             var order = new int[rowCount];
             int next = 0;
@@ -213,22 +284,33 @@ namespace TroopTooltipSorter.Patches
             return order;
         }
 
-        private static int Compare(TroopRosterElement a, TroopRosterElement b)
+        private static int Compare(CharacterObject a, CharacterObject b, Dictionary<CharacterObject, int> displayedCounts)
         {
-            // Descending headcount, then elites ahead of chaff, then name so the order never jitters.
-            int byCount = b.Number.CompareTo(a.Number);
+            // Descending by the count on screen, then elites ahead of chaff, then name so the
+            // order never jitters between refreshes.
+            int byCount = DisplayedCount(displayedCounts, b).CompareTo(DisplayedCount(displayedCounts, a));
             if (byCount != 0)
             {
                 return byCount;
             }
 
-            int byTier = (b.Character?.Tier ?? 0).CompareTo(a.Character?.Tier ?? 0);
+            int byTier = (b?.Tier ?? 0).CompareTo(a?.Tier ?? 0);
             if (byTier != 0)
             {
                 return byTier;
             }
 
-            return string.CompareOrdinal(a.Character?.Name?.ToString(), b.Character?.Name?.ToString());
+            return string.CompareOrdinal(a?.Name?.ToString(), b?.Name?.ToString());
+        }
+
+        private static int DisplayedCount(Dictionary<CharacterObject, int> displayedCounts, CharacterObject character)
+        {
+            if (character != null && displayedCounts != null && displayedCounts.TryGetValue(character, out int count))
+            {
+                return count;
+            }
+
+            return 0;
         }
 
         private static bool HasFlag(TooltipProperty row, TooltipProperty.TooltipPropertyFlags flag)
@@ -267,7 +349,9 @@ namespace TroopTooltipSorter.Patches
             EncounterTooltipSorter.Reorder(
                 propertyBasedTooltipVM,
                 EncounterTooltipSorter.BuildSide(parties1),
+                EncounterTooltipSorter.FirstPartyCounts(parties1),
                 EncounterTooltipSorter.BuildSide(parties2),
+                EncounterTooltipSorter.FirstPartyCounts(parties2),
                 isExtended);
         }
     }
@@ -291,7 +375,9 @@ namespace TroopTooltipSorter.Patches
             EncounterTooltipSorter.Reorder(
                 propertyBasedTooltipVM,
                 EncounterTooltipSorter.BuildSide(parties1),
+                EncounterTooltipSorter.FirstPartyCounts(parties1),
                 EncounterTooltipSorter.BuildSide(parties2),
+                EncounterTooltipSorter.FirstPartyCounts(parties2),
                 isExtended);
         }
     }
