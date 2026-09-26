@@ -31,9 +31,10 @@ but the copy fails with MSB3021/MSB3027. Close the game, then rebuild.
 
 ## Architecture
 
-Everything hangs off one vanilla method,
-`TooltipRefresherCollection.AddPartyTroopProperties(propertyBasedTooltipVM, troopRoster, title, isInspected, funcToDoBeforeLambda)`.
-Every party, army, garrison and prisoner tooltip funnels through it.
+Two vanilla builders, both on `TooltipRefresherCollection`.
+
+`AddPartyTroopProperties(propertyBasedTooltipVM, troopRoster, title, isInspected, funcToDoBeforeLambda)`
+backs every party, army, garrison and prisoner tooltip.
 
 - [SortTroopTooltipPatch](src/TroopTooltipSorter/Patches/SortTroopTooltipPatch.cs) - **prefix**.
   Swaps `troopRoster` for a sorted copy and lets vanilla render it. The copy is throwaway and used
@@ -43,6 +44,20 @@ Every party, army, garrison and prisoner tooltip funnels through it.
   matching rows by the exact label vanilla generated. Gated on `IsExtended` (ALT held).
 - [TooltipBuilderPatcher](src/TroopTooltipSorter/Patches/TooltipBuilderPatcher.cs) - finds *other*
   loaded copies of that method and applies both patches to them.
+
+`AddEncounterParties` backs siege and field-battle tooltips - the two-column attacker/defender
+layout. It has **two overloads**, one taking `MBReadOnlyList<PartyBase>` (sieges) and one taking
+`MBReadOnlyList<MapEventParty>` (field battles), so the patch attribute must specify argument
+types. Naval DLC does *not* duplicate this one, so the discovery scan is not involved.
+
+- [SortEncounterTooltipPatch](src/TroopTooltipSorter/Patches/SortEncounterTooltipPatch.cs) -
+  **postfix** on both overloads. The roster it renders is a local, so there is no argument to swap.
+  Instead it rebuilds each side's roster the way vanilla did (the parties are parameters, so this is
+  exact), derives the display order, and permutes the finished rows by swapping the private
+  `definitionFunc` / `valueFunc` delegates on `TooltipProperty` and calling `RefreshDefinition()` /
+  `RefreshValue()`. Each row carries one closure per column, so the columns permute independently -
+  sorting the left must not drag the right along. It locates the rank rows by counting back from the
+  trailing `BattleModeOver` row, and bails if that shape does not hold.
 
 ### Naval DLC ships a second copy of the tooltip builder
 
@@ -88,3 +103,12 @@ so make changes count. Crash logs are in `C:\ProgramData\Mount and Blade II Bann
 (`rgl_log_<pid>.txt`, `watchdog_log_<pid>.txt`). The `crashes\` folder is emptied once a report is
 uploaded, so the dump is usually gone; comparing a working session's log against a crashing one is
 more productive.
+
+## Reflection into vanilla internals
+
+`SortEncounterTooltipPatch` reads two private fields on `TooltipProperty` (`definitionFunc`,
+`valueFunc`). These are resolved once via `AccessTools.Field` and null-checked - if a game update
+renames them the patch reports once and leaves the tooltip in vanilla order rather than throwing.
+Verify patch targets resolve before testing in-game: load the built DLL in PowerShell, read the
+`HarmonyPatch` attributes, and resolve each `info.declaringType.GetMethod(...)`. That catches a bad
+overload signature without costing a game restart.

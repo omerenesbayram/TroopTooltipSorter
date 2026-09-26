@@ -59,6 +59,14 @@ Pass `-p:SkipDeploy=true` to build without touching the game folder.
 2. Enable **Troop Tooltip Sorter** in the launcher, below Harmony.
 3. Load a campaign. A green "Troop Tooltip Sorter loaded." message confirms the module started.
 4. Hover a party on the map and hold **ALT**. The troop list should run largest stack first.
+5. Hover an ongoing siege or battle and hold **ALT**. Both columns should be sorted independently.
+
+## Sieges and battles
+
+Siege and field-battle tooltips are built by a different vanilla method, `AddEncounterParties`,
+which lays the two sides out side by side - attacker on the left, defender on the right. Holding
+**ALT** now sorts each column by headcount, independently of the other, with each side's heroes
+kept in their vanilla leading block.
 
 ## Naval DLC
 
