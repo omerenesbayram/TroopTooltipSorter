@@ -113,15 +113,16 @@ Verify patch targets resolve before testing in-game: load the built DLL in Power
 `HarmonyPatch` attributes, and resolve each `info.declaringType.GetMethod(...)`. That catches a bad
 overload signature without costing a game restart.
 
-### The encounter tooltip prints per-party counts, not side totals
+### The encounter tooltip printed per-party counts, not side totals
 
-`AddEncounterParties` builds a merged roster per side to decide *which* troops get a row, but the
-label delegate for each row scans the party list and returns on the **first party containing that
-character** - so the number on screen is that one party's count, not the side's total. With a
-two-party defence the two coincide; across a fourteen-party besieging army they diverge badly (the
-attacker column's numbers sum to a few hundred against a stated 1828).
+`AddEncounterParties` picks which troops get a row from a merged per-side roster, but vanilla's
+label delegate scans the party list and returns on the **first party containing that character** -
+so the printed number was that one party's count. With a two-party defence the two coincide; across
+a fourteen-party besieging army they diverge badly (the attacker column summed to a few hundred
+against a stated 1828).
 
-So sorting must use the first-party figure, not the merged total, or the column looks shuffled
-against its own numbers. `EncounterTooltipSorter.FirstPartyCounts` reproduces it, and deliberately
-skips the hidden-party filter that the roster build applies, because the label delegate skips it
-too.
+`SortEncounterTooltipPatch` now re-labels troop rows with the side-wide total, reusing vanilla's
+text and localisation id (`{=vLaBJFGy}`) so only the number changes. Totals are recomputed inside
+the delegate on every call, not captured, so they keep moving during a battle. Hero rows keep
+vanilla's delegate untouched - they show a health percentage, and the two columns word it
+differently.
