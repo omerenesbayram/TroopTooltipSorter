@@ -1,122 +1,154 @@
 # Troop Tooltip Sorter
 
-A Mount & Blade II: Bannerlord mod. When you hold **ALT** over a party or army on the campaign
-map, the detailed troop breakdown is sorted by headcount (largest stack first) instead of raw
-roster order.
+A Mount & Blade II: Bannerlord mod that makes campaign-map tooltips readable at a glance.
 
-Ties are broken by troop tier, elites first, then by name so the order never jitters between
-tooltip refreshes.
+Vanilla lists troops in whatever order they happen to sit in the roster, and clips the list after
+a fixed number of lines — so the stacks that decide a fight can fall off the bottom while a single
+scout sits at the top. This mod sorts those lists by headcount and adds a little more detail about
+what you are actually looking at.
+
+Everything it adds appears only while **ALT** is held. Without ALT, tooltips look exactly as they
+always did.
 
 Built against **Bannerlord v1.4.8**.
 
-## How it works
+---
 
-`TooltipRefresherCollection.AddPartyTroopProperties` is the private helper that every party,
-army, garrison and prisoner tooltip funnels through. A Harmony **prefix** swaps its `troopRoster`
-argument for a sorted copy, and vanilla then renders the list in that order.
+## Features
 
-The copy is a throwaway used only for rendering — the party's real roster is never touched, so
-there is no gameplay effect. If sorting ever throws, the prefix logs once and falls through to the
-vanilla order rather than breaking the tooltip.
+### 1. Troop lists sorted by headcount
 
-Because all of those tooltips share the one helper, garrison and prisoner lists get sorted too.
+Hold **ALT** over a party, army, settlement or garrison and the troop breakdown runs largest stack
+first, instead of raw roster order.
 
-## Layout
+Ties break by troop tier, elites ahead of chaff, then by name — that last step matters, because
+without it the order would jitter as the tooltip redraws. Heroes stay in their own block at the
+top, where vanilla puts the party leader first.
 
-| Path | What |
-|---|---|
-| `src/TroopTooltipSorter/` | The C# project |
-| `src/TroopTooltipSorter/SubModule.cs` | Entry point; applies the Harmony patches |
-| `src/TroopTooltipSorter/Patches/` | The Harmony patches |
-| `module/SubModule.xml` | Module manifest deployed to the game |
-| `Directory.Build.props` | Game path and module name |
+This covers party, army, garrison and prisoner lists.
 
-## Building
+### 2. Troop quality in the Troops summary
+
+The Troops block summarises a roster by formation class, which tells you an army's shape but
+nothing about its quality — 200 infantry of recruits and 200 of veterans read alike.
+
+Holding **ALT** splits each row by troop tier:
+
+```
+Infantry T4+       13
+Infantry T3-      159
+Ranged T4+         38
+Ranged T3-        137
+Cavalry T4+         6
+Cavalry T3-         5
+Horse Archer T4+   36
+Horse Archer T3-   31
+```
+
+`T4+` is tier 4 and above, `T3-` everything below. Without ALT you get vanilla's single number per
+class, so this is detail you ask for rather than clutter you always carry.
+
+Each pair still adds up to the number vanilla showed. An empty bucket is left out rather than
+printed as a zero, and the suffixes are appended to whatever label the game produced, so this stays
+correct in any language.
+
+### 3. Siege and battle tooltips
+
+Sieges and field battles use a different tooltip — the two-column attacker-versus-defender layout.
+Holding **ALT** sorts each column by headcount, independently of the other.
+
+It also fixes something misleading in vanilla. Each row's number was **the first party's count, not
+the side's**. For a two-party garrison nobody notices, but a fourteen-party besieging army would
+report a few hundred troops against a stated total of 1828. Rows now show the **whole side's** count
+for that troop, so the column adds up to the number in the header.
+
+Counts stay live as a battle resolves, the same way vanilla's do.
+
+---
+
+## Requirements
+
+- Mount & Blade II: Bannerlord **v1.4.8**
+- [Bannerlord.Harmony](https://www.nexusmods.com/mountandblade2bannerlord/mods/2006)
+
+Naval DLC is **supported but not required** — see [Compatibility](#compatibility).
+
+## Installation
+
+Drop the `TroopTooltipSorter` folder into your game's `Modules` folder, so you end up with:
+
+```
+Mount & Blade II Bannerlord/
+└── Modules/
+    └── TroopTooltipSorter/
+        ├── SubModule.xml
+        └── bin/Win64_Shipping_Client/TroopTooltipSorter.dll
+```
+
+Then enable **Troop Tooltip Sorter** in the launcher, ordered below Harmony. A green
+"Troop Tooltip Sorter loaded." message on the main menu confirms it started.
+
+Safe to add or remove mid-campaign: it only changes how tooltips are drawn and never touches a
+party's real roster, so nothing is written to your save.
+
+## Compatibility
+
+Naval DLC ships its **own copy** of the tooltip builder and re-points settlement tooltips at it,
+which is why patching only the TaleWorlds one leaves castle and town garrisons unsorted. Rather
+than depend on the DLC, the mod scans loaded assemblies for every copy of that method and patches
+each, matching on exact parameter signature. Without Naval DLC installed the scan simply finds
+nothing.
+
+Every patch fails safe. If one cannot do its job it reports once to the game log and lets vanilla
+draw the tooltip, rather than breaking something that redraws constantly.
+
+Because the patches hook methods TaleWorlds never promised to keep, a future game update could stop
+them working. They would quietly do nothing rather than crash.
+
+## Building from source
+
+Requires the **.NET SDK 8**. Visual Studio is not needed — the `net472` reference assemblies come
+from NuGet.
 
 ```
 dotnet build src/TroopTooltipSorter/TroopTooltipSorter.csproj -c Release
 ```
 
-The build copies the DLL and `SubModule.xml` straight into
-`<Bannerlord>/Modules/TroopTooltipSorter/`, so a successful build is immediately playable.
+A successful build copies the DLL and `SubModule.xml` straight into the game, so building is also
+deploying. Useful switches:
 
-If the game is not at the default Steam location, override the path:
+| Switch | Effect |
+|---|---|
+| `-p:SkipDeploy=true` | Build without touching the game folder |
+| `-p:BannerlordDir="D:\..."` | Point at a non-default install |
 
-```
-dotnet build src/TroopTooltipSorter/TroopTooltipSorter.csproj -c Release -p:BannerlordDir="D:\Games\Bannerlord"
-```
+The game locks the deployed DLL, so close Bannerlord and its launcher before building.
 
-Pass `-p:SkipDeploy=true` to build without touching the game folder.
-
-## Requirements
-
-- .NET SDK 8 (builds the `net472` target; no Visual Studio needed)
-- The `Bannerlord.Harmony` module installed in the game
-
-## Testing it
-
-1. Build.
-2. Enable **Troop Tooltip Sorter** in the launcher, below Harmony.
-3. Load a campaign. A green "Troop Tooltip Sorter loaded." message confirms the module started.
-4. Hover a party on the map and hold **ALT**. The troop list should run largest stack first.
-5. Hover an ongoing siege or battle and hold **ALT**. Both columns should be sorted independently.
-
-## Sieges and battles
-
-Siege and field-battle tooltips are built by a different vanilla method, `AddEncounterParties`,
-which lays the two sides out side by side - attacker on the left, defender on the right. Holding
-**ALT** now sorts each column by headcount, independently of the other, with each side's heroes
-kept in their vanilla leading block.
-
-## Naval DLC
-
-Naval DLC ships its own `NavalTooltipRefresherCollection` and re-registers the **settlement**
-tooltip to point at it, so patching only the TaleWorlds type leaves castle and town garrisons
-unsorted. The mod therefore scans loaded assemblies for every copy of `AddPartyTroopProperties`
-and patches each one, matching on the exact parameter signature. Naval DLC is not a dependency:
-without it the scan simply finds nothing.
-
-## Troop quality in the summary
-
-The "Troops" block summarises a roster by formation class (Infantry, Ranged, Cavalry, Horse
-Archer), which shows an army's shape but nothing about its quality - 200 infantry of recruits and
-200 of veterans read alike. While **ALT** is held, each of those rows splits in two by troop tier:
-
-```
-Infantry T4+      13
-Infantry T3-     159
-Ranged T4+        38
-Ranged T3-       137
-Cavalry T4+        6
-Cavalry T3-        5
-Horse Archer T4+  36
-Horse Archer T3-  31
-```
-
-`T4+` is tier 4 and above, `T3-` everything below. Tier is the troop's tier as the game shows it,
-not `CharacterObject.Level`, which is on the hero-level scale and would make a cutoff of 4
-meaningless.
-
-Without ALT the tooltip keeps vanilla's single number per class, so the split is detail you ask
-for rather than clutter you always carry.
-
-A bucket with nobody in it is omitted rather than printed as zero. The totals are recomputed from
-the same roster vanilla used, so each pair still adds up to the single number vanilla showed. The
-suffixes are appended to whatever label the game produced, so this stays correct in any language.
-
-## Packaging a release
+To produce a release zip:
 
 ```
 powershell -ExecutionPolicy Bypass -File pack.ps1
 ```
 
-Builds Release without touching the installed copy and writes
-`dist/TroopTooltipSorter-v<version>.zip`, holding the module folder at the zip root:
+## How it works
 
-```
-TroopTooltipSorter/SubModule.xml
-TroopTooltipSorter/bin/Win64_Shipping_Client/TroopTooltipSorter.dll
-```
+Harmony patches on two vanilla tooltip builders, both on `TooltipRefresherCollection`.
 
-Extract that into the game's `Modules` folder, or hand the zip to a mod manager. The version comes
-from `module/SubModule.xml`, so bump it there (and in the `.csproj`) before packing.
+`AddPartyTroopProperties` backs party, army, garrison and prisoner tooltips. A **prefix** hands it a
+sorted copy of the roster and lets vanilla render that; a **postfix** rewrites the formation-summary
+rows into tier buckets. The sorted roster is a throwaway used only for drawing — the real one is
+never touched.
+
+`AddEncounterParties` backs siege and battle tooltips. It renders from a local, so there is no
+argument to swap. Instead the patch rebuilds each side from the parties it was handed, works out the
+display order, and rewrites the finished rows. Each row carries one closure per column, so the two
+columns are handled independently — sorting the attackers must not reorder the defenders alongside
+them.
+
+| Path | What |
+|---|---|
+| `src/TroopTooltipSorter/Patches/` | The Harmony patches |
+| `src/TroopTooltipSorter/SubModule.cs` | Entry point |
+| `module/SubModule.xml` | Module manifest deployed to the game |
+| `pack.ps1` | Builds a release zip |
+| `CLAUDE.md` | Notes for working on the code |
