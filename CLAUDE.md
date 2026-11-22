@@ -8,7 +8,7 @@ A Mount & Blade II: Bannerlord mod that improves the campaign-map party/army too
 | | |
 |---|---|
 | Game | `C:\Program Files (x86)\Steam\steamapps\common\Mount & Blade II Bannerlord` |
-| Game version | **v1.4.8**, running on **.NET Framework 4.7.2** (not .NET Core) |
+| Game version | **v1.5.7**, running on **.NET Framework 4.7.2** (not .NET Core) |
 | Deploy target | `<game>\Modules\TroopTooltipSorter` |
 | Build | .NET SDK 8. No Visual Studio - `net472` reference assemblies come from NuGet |
 | Decompiler | `%USERPROFILE%\.dotnet\tools\ilspycmd.exe` |
@@ -31,7 +31,8 @@ but the copy fails with MSB3021/MSB3027. Close the game, then rebuild.
 
 ## Architecture
 
-Two vanilla builders, both on `TooltipRefresherCollection`.
+Three vanilla builders. Two are on `TooltipRefresherCollection`; the third is on a view model and
+bypasses the tooltip machinery entirely (see below).
 
 `AddPartyTroopProperties(propertyBasedTooltipVM, troopRoster, title, isInspected, funcToDoBeforeLambda)`
 backs every party, army, garrison and prisoner tooltip.
@@ -58,6 +59,17 @@ types. Naval DLC does *not* duplicate this one, so the discovery scan is not inv
   `RefreshValue()`. Each row carries one closure per column, so the columns permute independently -
   sorting the left must not drag the right along. It locates the rank rows by counting back from the
   trailing `BattleModeOver` row, and bails if that shape does not hold.
+
+`EncounterMenuOverlayVM.GetEncounterSideTroopsTooltip` backs the battle screen's troop counts. It
+builds a finished `List<TooltipProperty>` itself, so neither patch above reaches it.
+
+- [SortEncounterOverlayPatch](src/TroopTooltipSorter/Patches/SortEncounterOverlayPatch.cs) -
+  **postfix**. Rebuilds the side's roster from the view model's own `AttackerPartyList` /
+  `DefenderPartyList`, reorders the trailing troop rows, and splits the summary. It verifies row N
+  really is the troop at roster position N before reordering, and bails if not. Because this list
+  is built once for both ALT states, the tier rows are added *alongside* the original (which is
+  flagged show-only-when-not-extended) rather than replacing it - that is what the `gateOnExtended`
+  flag on [TierSummarySplitter](src/TroopTooltipSorter/Patches/TierSummarySplitter.cs) selects.
 
 ### Naval DLC ships a second copy of the tooltip builder
 
@@ -126,3 +138,37 @@ text and localisation id (`{=vLaBJFGy}`) so only the number changes. Totals are 
 the delegate on every call, not captured, so they keep moving during a battle. Hero rows keep
 vanilla's delegate untouched - they show a health percentage, and the two columns word it
 differently.
+
+## A game update requires a rebuild
+
+When 1.4.8 went to 1.5.7, `AddPartyTroopProperties` was byte-identical, every patch still bound,
+and nothing was logged - yet the tier split silently stopped working. Recompiling the unchanged
+source against the new assemblies fixed it; no logic changed. A member the old binary referenced
+must have moved or changed signature, so it threw at the point of use, and the `Debug.PrintError`
+in the `catch` evidently threw too, which is why nothing reached any log.
+
+**So after any game update, rebuild and redeploy before debugging anything.** A mod that loads and
+half-works is not evidence that the binary is current.
+
+## There are three troop-list builders, not one
+
+Long-running confusion came from assuming `TooltipRefresherCollection` owned every troop list:
+
+1. `TooltipRefresherCollection.AddPartyTroopProperties` - party, army, garrison, prisoner tooltips.
+2. `TooltipRefresherCollection.AddEncounterParties` - siege and field-battle tooltips (two overloads).
+3. `EncounterMenuOverlayVM.GetEncounterSideTroopsTooltip` - the battle screen's troop counts.
+
+The third builds a finished `List<TooltipProperty>` and passes it to the tooltip system directly,
+so no refresher runs for it. `InformationManager.ShowTooltip(Type, object[])` is the single funnel
+every tooltip passes through, and a temporary prefix logging its `Type` argument is the quickest
+way to identify an unknown tooltip - a hovered type of `List<TooltipProperty>` means the rows were
+built elsewhere and there is no refresher to patch. That hook is safe; the refreshers are not.
+
+## Searching assembly bytes: identifiers are UTF-8, string literals are UTF-16
+
+`grep -a` finds type and method names, because those live in the `#Strings` heap as UTF-8. It will
+**never** find a string literal such as `"str_troop_types"`, which lives in the `#US` heap as
+UTF-16, and the empty result looks exactly like a genuine absence. Search literals by reading the
+bytes and decoding with `[System.Text.Encoding]::Unicode`, or just decompile the assembly to a
+short path and grep the source. Decompiling and grepping is what finally found the third builder -
+two call sites in one assembly, where only the first had ever been looked at.

@@ -10,7 +10,7 @@ what you are actually looking at.
 Everything it adds appears only while **ALT** is held. Without ALT, tooltips look exactly as they
 always did.
 
-Built against **Bannerlord v1.4.8**.
+Built against **Bannerlord v1.5.7**.
 
 ---
 
@@ -64,11 +64,30 @@ for that troop, so the column adds up to the number in the header.
 
 Counts stay live as a battle resolves, the same way vanilla's do.
 
+### 4. The battle screen's troop counts
+
+Hovering a side's troop total on the battle screen — the attacker/defender counts above the party
+banners — shows that side's whole composition. Holding **ALT** sorts that list by headcount and
+splits the summary by tier, the same as everywhere else:
+
+```
+Infantry T4+      17
+Infantry T3-     458
+Ranged T4+        27
+Ranged T3-       291
+Cavalry T4+       68
+Cavalry T3-      193
+```
+
+This one never worked in any earlier release. The battle screen does not use the map tooltip at
+all — it builds its own rows — so the patches that covered every other tooltip simply never ran
+here. See [How it works](#how-it-works).
+
 ---
 
 ## Requirements
 
-- Mount & Blade II: Bannerlord **v1.4.8**
+- Mount & Blade II: Bannerlord **v1.5.7**
 - [Bannerlord.Harmony](https://www.nexusmods.com/mountandblade2bannerlord/mods/2006)
 
 Naval DLC is **supported but not required** — see [Compatibility](#compatibility).
@@ -132,18 +151,32 @@ powershell -ExecutionPolicy Bypass -File pack.ps1
 
 ## How it works
 
-Harmony patches on two vanilla tooltip builders, both on `TooltipRefresherCollection`.
+Harmony patches on three vanilla tooltip builders. The game has no single place where a troop list
+is assembled — it has three, written in three different styles — which is why each feature landed
+separately.
 
-`AddPartyTroopProperties` backs party, army, garrison and prisoner tooltips. A **prefix** hands it a
-sorted copy of the roster and lets vanilla render that; a **postfix** rewrites the formation-summary
-rows into tier buckets. The sorted roster is a throwaway used only for drawing — the real one is
-never touched.
+`TooltipRefresherCollection.AddPartyTroopProperties` backs party, army, garrison and prisoner
+tooltips. A **prefix** hands it a sorted copy of the roster and lets vanilla render that; a
+**postfix** rewrites the formation-summary rows into tier buckets. The sorted roster is a throwaway
+used only for drawing — the real one is never touched.
 
-`AddEncounterParties` backs siege and battle tooltips. It renders from a local, so there is no
-argument to swap. Instead the patch rebuilds each side from the parties it was handed, works out the
-display order, and rewrites the finished rows. Each row carries one closure per column, so the two
-columns are handled independently — sorting the attackers must not reorder the defenders alongside
-them.
+`TooltipRefresherCollection.AddEncounterParties` backs siege and field-battle tooltips. It renders
+from a local, so there is no argument to swap. Instead the patch rebuilds each side from the parties
+it was handed, works out the display order, and rewrites the finished rows. Each row carries one
+closure per column, so the two columns are handled independently — sorting the attackers must not
+reorder the defenders alongside them.
+
+`EncounterMenuOverlayVM.GetEncounterSideTroopsTooltip` backs the battle screen's troop counts. This
+one bypasses the tooltip machinery entirely: it assembles a finished `List<TooltipProperty>` and
+hands it straight over, so no refresher runs and neither patch above reaches it. The patch rebuilds
+the side's roster from the view model's own party lists, reorders the trailing troop rows, and
+splits the summary.
+
+That last one also differs in how ALT is handled. A map tooltip is rebuilt whenever ALT is pressed,
+so the rows can simply be swapped. The overlay builds **one** list covering both states, with each
+row carrying its own show-when-extended flag — so there the tier rows are added alongside the
+original, which is marked to show only when ALT is *not* held. `TierSummarySplitter` holds the
+shared tier logic and takes a flag to pick between the two.
 
 | Path | What |
 |---|---|
