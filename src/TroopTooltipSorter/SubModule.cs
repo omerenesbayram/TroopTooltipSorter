@@ -20,9 +20,9 @@ namespace TroopTooltipSorter
         {
             base.OnSubModuleLoad();
 
-
             try
             {
+
                 _harmony = new Harmony("omerb." + ModuleId);
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
 
